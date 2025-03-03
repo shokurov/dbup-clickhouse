@@ -1,7 +1,7 @@
 ﻿using DbUp.Builder;
 using DbUp.Tests.Common;
 
-namespace DbUp.NewProvider.Tests;
+namespace DbUp.ClickHouse.Tests;
 
 public class DatabaseSupportTests : DatabaseSupportTestsBase
 {
@@ -10,11 +10,11 @@ public class DatabaseSupportTests : DatabaseSupportTestsBase
     }
 
     protected override UpgradeEngineBuilder DeployTo(SupportedDatabases to)
-        => to.NewProviderDatabase("");
+        => to.ClickHouseDatabase("");
 
     protected override UpgradeEngineBuilder AddCustomNamedJournalToBuilder(UpgradeEngineBuilder builder, string schema, string tableName)
         => builder.JournalTo(
             (connectionManagerFactory, logFactory)
-                => new NewProviderJournal(connectionManagerFactory, logFactory, tableName)
+                => new ClickHouseJournal(connectionManagerFactory, logFactory, tableName)
         );
 }
