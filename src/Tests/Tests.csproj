@@ -1,19 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;net8</TargetFrameworks>
+    <TargetFramework>net8</TargetFramework>
     <AssemblyName>Tests</AssemblyName>
-    <RootNamespace>DbUp.NewProvider.Tests</RootNamespace>
-    <!--    <ImplicitUsings>enable</ImplicitUsings> Can't use implict usings with net46 -->
+    <RootNamespace>DbUp.ClickHouse.Tests</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\dbup-newprovider\dbup-newprovider.csproj"/>
-    <PackageReference Include="DbUp.Tests.Common" Version="5.0.37"/>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0"/>
-    <PackageReference Include="xunit" Version="2.6.6"/>
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.6">
+    <ProjectReference Include="..\dbup-clickhouse\dbup-clickhouse.csproj"/>
+    <PackageReference Include="DbUp.Tests.Common" Version="6.0.5" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
