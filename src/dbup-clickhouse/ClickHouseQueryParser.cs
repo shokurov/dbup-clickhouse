@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace DbUp.ClickHouse;
 
 /// <summary>
-/// Provides SQL query parsing functionality for ClickHouse scripts, capable of splitting multi-statement SQL 
+/// Provides SQL query parsing functionality for ClickHouse scripts, capable of splitting multi-statement SQL
 /// into individual statements while properly handling comments, string literals, and quoted identifiers.
 /// </summary>
 internal static class ClickHouseQueryParser
@@ -16,29 +16,37 @@ internal static class ClickHouseQueryParser
     {
         /// <summary>Normal SQL parsing state.</summary>
         Normal,
+
         /// <summary>Inside a single-quoted string literal.</summary>
         SingleQuote,
+
         /// <summary>Inside a back-tick quoted identifier.</summary>
         BackTickQuote,
+
         /// <summary>Inside a line comment (-- style).</summary>
         LineComment,
+
         /// <summary>Inside a block comment (/* */ style).</summary>
-        BlockComment
+        BlockComment,
     }
 
     /// <summary>
     /// Maintains parsing context and position information during SQL processing.
     /// </summary>
-    private struct ParseContext()
+    private record ParseContext
     {
         /// <summary>Current character position in the SQL string.</summary>
-        public int Position { get; set; } = 0;
-        /// <summary>Starting position of the current SQL statement being parsed.</summary>
-        public int StatementStart { get; set; } = 0;
+        public int Position { get; set; }
+
+        /// <summary>The starting position of the current SQL statement being parsed.</summary>
+        public int StatementStart { get; set; }
+
         /// <summary>Current nesting level of parentheses to avoid splitting on semicolons within function calls or subqueries.</summary>
-        public int ParenthesisLevel { get; set; } = 0;
+        public int ParenthesisLevel { get; set; }
+
         /// <summary>Current nesting level of block comments to handle nested /* */ comments correctly.</summary>
-        public int BlockCommentLevel { get; set; } = 0;
+        public int BlockCommentLevel { get; set; }
+
         /// <summary>Current parsing state indicating the type of content being processed.</summary>
         public ParseState State { get; set; } = ParseState.Normal;
     }
@@ -67,7 +75,7 @@ internal static class ClickHouseQueryParser
 
         var statements = new List<string>();
         var context = new ParseContext();
-        
+
         while (context.Position < sql.Length)
         {
             if (TryParseStatement(sql, context, out var statement))
@@ -89,7 +97,7 @@ internal static class ClickHouseQueryParser
     private static bool TryParseStatement(string sql, ParseContext context, out string statement)
     {
         statement = string.Empty;
-        
+
         while (context.Position < sql.Length)
         {
             var ch = sql[context.Position];
@@ -109,7 +117,12 @@ internal static class ClickHouseQueryParser
         return false;
     }
 
-    private static bool HandleNormalState(string sql, ParseContext context, char ch, out string statement)
+    private static bool HandleNormalState(
+        string sql,
+        ParseContext context,
+        char ch,
+        out string statement
+    )
     {
         statement = string.Empty;
 
@@ -213,7 +226,9 @@ internal static class ClickHouseQueryParser
     private static string ExtractStatement(string sql, ParseContext context)
     {
         var statementLength = context.Position - context.StatementStart - 1;
-        return statementLength <= 0 ? string.Empty : sql.Substring(context.StatementStart, statementLength);
+        return statementLength <= 0
+            ? string.Empty
+            : sql.Substring(context.StatementStart, statementLength);
     }
 
     private static void SkipWhitespaceAndStartNext(string sql, ParseContext context)
