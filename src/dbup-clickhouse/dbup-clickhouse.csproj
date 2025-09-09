@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>DbUp makes it easy to deploy and upgrade SQL Server databases. This package adds ClickHouse support.</Description>
+    <Description>DbUp makes it easy to deploy and upgrade databases. This package adds ClickHouse support.</Description>
     <Title>DbUp ClickHouse Support</Title>
     <Company>DbUp Contributors</Company>
     <Product>DbUp</Product>
@@ -17,6 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ClickHouse.Driver" Version="0.7.20" />
     <PackageReference Include="dbup-core" Version="6.0.5" />
   </ItemGroup>
 
