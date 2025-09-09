@@ -1,177 +1,227 @@
 ﻿#nullable enable
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Text;
 
 namespace DbUp.ClickHouse;
 
+/// <summary>
+/// Provides SQL query parsing functionality for ClickHouse scripts, capable of splitting multi-statement SQL 
+/// into individual statements while properly handling comments, string literals, and quoted identifiers.
+/// </summary>
 internal static class ClickHouseQueryParser
 {
+    /// <summary>
+    /// Represents the current parsing state when processing SQL text.
+    /// </summary>
+    private enum ParseState
+    {
+        /// <summary>Normal SQL parsing state.</summary>
+        Normal,
+        /// <summary>Inside a single-quoted string literal.</summary>
+        SingleQuote,
+        /// <summary>Inside a back-tick quoted identifier.</summary>
+        BackTickQuote,
+        /// <summary>Inside a line comment (-- style).</summary>
+        LineComment,
+        /// <summary>Inside a block comment (/* */ style).</summary>
+        BlockComment
+    }
+
+    /// <summary>
+    /// Maintains parsing context and position information during SQL processing.
+    /// </summary>
+    private struct ParseContext()
+    {
+        /// <summary>Current character position in the SQL string.</summary>
+        public int Position { get; set; } = 0;
+        /// <summary>Starting position of the current SQL statement being parsed.</summary>
+        public int StatementStart { get; set; } = 0;
+        /// <summary>Current nesting level of parentheses to avoid splitting on semicolons within function calls or subqueries.</summary>
+        public int ParenthesisLevel { get; set; } = 0;
+        /// <summary>Current nesting level of block comments to handle nested /* */ comments correctly.</summary>
+        public int BlockCommentLevel { get; set; } = 0;
+        /// <summary>Current parsing state indicating the type of content being processed.</summary>
+        public ParseState State { get; set; } = ParseState.Normal;
+    }
+
+    /// <summary>
+    /// Parses raw SQL text and splits it into individual executable statements.
+    /// </summary>
+    /// <param name="sql">The SQL text to parse, which may contain multiple statements separated by semicolons.</param>
+    /// <returns>
+    /// A read-only collection of individual SQL statements. Empty or whitespace-only statements are excluded.
+    /// Returns an empty collection if the input is null or empty.
+    /// </returns>
+    /// <remarks>
+    /// This parser correctly handles:
+    /// - Semicolons within string literals ('text; with semicolon')
+    /// - Semicolons within quoted identifiers (`identifier; with semicolon`)
+    /// - Semicolons within line comments (-- comment; with semicolon)
+    /// - Semicolons within block comments (/* comment; with semicolon */)
+    /// - Nested block comments (/* outer /* inner */ outer */)
+    /// - Semicolons within parentheses for function calls and subqueries
+    /// </remarks>
     public static IReadOnlyCollection<string> ParseRawQuery(string sql)
     {
-        List<string> result = new();
-        StringBuilder currentStatementBuilder = new();
+        if (string.IsNullOrEmpty(sql))
+            return new List<string>();
 
-        currentStatementBuilder.Clear();
-
-        var currCharOfs = 0;
-        var end = sql.Length;
-        var ch = '\0';
-        var currTokenBeg = 0;
-        var blockCommentLevel = 0;
-        var parenthesisLevel = 0;
-
-        None:
-        if (currCharOfs >= end)
-            goto Finish;
-        var lastChar = ch;
-        ch = sql[currCharOfs++];
-        NoneContinue:
-        while (true)
+        var statements = new List<string>();
+        var context = new ParseContext();
+        
+        while (context.Position < sql.Length)
         {
-            switch (ch)
+            if (TryParseStatement(sql, context, out var statement))
             {
-                case '/':
-                    goto BlockCommentBegin;
-                case '-':
-                    goto LineCommentBegin;
-                case '\'':
-                    goto Quoted;
-                case '`':
-                    goto Quoted;
-                case ';':
-                    if (parenthesisLevel == 0)
-                        goto SemiColon;
-                    break;
-                case '(':
-                    parenthesisLevel++;
-                    break;
-                case ')':
-                    parenthesisLevel--;
-                    break;
-            }
-
-            if (currCharOfs >= end)
-                goto Finish;
-
-            lastChar = ch;
-            ch = sql[currCharOfs++];
-        }
-
-        Quoted:
-        Debug.Assert(ch is '\'' or '`');
-        while (currCharOfs < end && sql[currCharOfs] != ch)
-        {
-            currCharOfs++;
-        }
-
-        if (currCharOfs < end)
-        {
-            currCharOfs++;
-            ch = '\0';
-            goto None;
-        }
-
-        goto Finish;
-
-        LineCommentBegin:
-        if (currCharOfs < end)
-        {
-            ch = sql[currCharOfs++];
-            if (ch == '-')
-                goto LineComment;
-            lastChar = '\0';
-            goto NoneContinue;
-        }
-
-        goto Finish;
-
-        LineComment:
-        while (currCharOfs < end)
-        {
-            ch = sql[currCharOfs++];
-            if (ch is '\r' or '\n')
-                goto None;
-        }
-
-        goto Finish;
-
-        BlockCommentBegin:
-        while (currCharOfs < end)
-        {
-            ch = sql[currCharOfs++];
-            switch (ch)
-            {
-                case '*':
-                    blockCommentLevel++;
-                    goto BlockComment;
-                case '/':
-                    continue;
-            }
-
-            if (blockCommentLevel > 0)
-                goto BlockComment;
-            lastChar = '\0';
-            goto NoneContinue;
-        }
-
-        goto Finish;
-
-        BlockComment:
-        while (currCharOfs < end)
-        {
-            ch = sql[currCharOfs++];
-            switch (ch)
-            {
-                case '*':
-                    goto BlockCommentEnd;
-                case '/':
-                    goto BlockCommentBegin;
+                statements.Add(statement);
             }
         }
 
-        goto Finish;
-
-        BlockCommentEnd:
-        while (currCharOfs < end)
+        // Add a final statement if any content remains
+        if (context.StatementStart < sql.Length)
         {
-            ch = sql[currCharOfs++];
-            if (ch == '/')
-            {
-                if (--blockCommentLevel > 0)
-                    goto BlockComment;
-                goto None;
-            }
-
-            if (ch != '*')
-                goto BlockComment;
+            var finalStatement = sql.Substring(context.StatementStart);
+            statements.Add(finalStatement);
         }
 
-        goto Finish;
+        return statements;
+    }
 
-        SemiColon:
-        currentStatementBuilder.Append(sql, currTokenBeg, currCharOfs - currTokenBeg - 1);
-        result.Add(currentStatementBuilder.ToString());
-        while (currCharOfs < end)
+    private static bool TryParseStatement(string sql, ParseContext context, out string statement)
+    {
+        statement = string.Empty;
+        
+        while (context.Position < sql.Length)
         {
-            ch = sql[currCharOfs];
-            if (char.IsWhiteSpace(ch))
+            var ch = sql[context.Position];
+            context.Position++;
+
+            if (context.State == ParseState.Normal)
             {
-                currCharOfs++;
-                continue;
+                if (HandleNormalState(sql, context, ch, out statement))
+                    return true;
             }
-
-            currentStatementBuilder.Clear();
-
-            currTokenBeg = currCharOfs;
-            goto None;
+            else
+            {
+                HandleSpecialStates(sql, context, ch);
+            }
         }
 
-        return result;
+        return false;
+    }
 
-        Finish:
-        currentStatementBuilder.Append(sql, currTokenBeg, end - currTokenBeg);
-        result.Add(currentStatementBuilder.ToString());
-        return result;
+    private static bool HandleNormalState(string sql, ParseContext context, char ch, out string statement)
+    {
+        statement = string.Empty;
+
+        switch (ch)
+        {
+            case '\'':
+                context.State = ParseState.SingleQuote;
+                break;
+            case '`':
+                context.State = ParseState.BackTickQuote;
+                break;
+            case '/':
+                if (TryStartBlockComment(sql, context))
+                    context.State = ParseState.BlockComment;
+                break;
+            case '-':
+                if (TryStartLineComment(sql, context))
+                    context.State = ParseState.LineComment;
+                break;
+            case '(':
+                context.ParenthesisLevel++;
+                break;
+            case ')':
+                context.ParenthesisLevel--;
+                break;
+            case ';':
+                if (context.ParenthesisLevel == 0)
+                {
+                    statement = ExtractStatement(sql, context);
+                    SkipWhitespaceAndStartNext(sql, context);
+                    return !string.IsNullOrEmpty(statement);
+                }
+                break;
+        }
+
+        return false;
+    }
+
+    private static void HandleSpecialStates(string sql, ParseContext context, char ch)
+    {
+        switch (context.State)
+        {
+            case ParseState.SingleQuote:
+                if (ch == '\'')
+                    context.State = ParseState.Normal;
+                break;
+            case ParseState.BackTickQuote:
+                if (ch == '`')
+                    context.State = ParseState.Normal;
+                break;
+            case ParseState.LineComment:
+                if (ch is '\r' or '\n')
+                    context.State = ParseState.Normal;
+                break;
+            case ParseState.BlockComment:
+                HandleBlockComment(sql, context, ch);
+                break;
+        }
+    }
+
+    private static bool TryStartBlockComment(string sql, ParseContext context)
+    {
+        if (context.Position < sql.Length && sql[context.Position] == '*')
+        {
+            context.Position++;
+            context.BlockCommentLevel = 1;
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryStartLineComment(string sql, ParseContext context)
+    {
+        if (context.Position < sql.Length && sql[context.Position] == '-')
+        {
+            context.Position++;
+            return true;
+        }
+        return false;
+    }
+
+    private static void HandleBlockComment(string sql, ParseContext context, char ch)
+    {
+        switch (ch)
+        {
+            case '/' when context.Position < sql.Length && sql[context.Position] == '*':
+                context.Position++;
+                context.BlockCommentLevel++;
+                break;
+            case '*' when context.Position < sql.Length && sql[context.Position] == '/':
+            {
+                context.Position++;
+                context.BlockCommentLevel--;
+                if (context.BlockCommentLevel == 0)
+                    context.State = ParseState.Normal;
+                break;
+            }
+        }
+    }
+
+    private static string ExtractStatement(string sql, ParseContext context)
+    {
+        var statementLength = context.Position - context.StatementStart - 1;
+        return statementLength <= 0 ? string.Empty : sql.Substring(context.StatementStart, statementLength);
+    }
+
+    private static void SkipWhitespaceAndStartNext(string sql, ParseContext context)
+    {
+        while (context.Position < sql.Length && char.IsWhiteSpace(sql[context.Position]))
+        {
+            context.Position++;
+        }
+        context.StatementStart = context.Position;
     }
 }
