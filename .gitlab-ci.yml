@@ -59,7 +59,7 @@ build:
       - "$NUPKG_FOLDER/"
 
 publish:internal:
-  image: mcr.microsoft.com/dotnet/sdk:8.0
+  image: mcr.microsoft.com/dotnet/sdk:9.0
   stage: publish
   variables:
     PACKAGE_VERSION: ${GitVersion_LegacySemVer}
