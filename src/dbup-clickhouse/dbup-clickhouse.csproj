@@ -6,7 +6,7 @@
     <Company>DbUp Contributors</Company>
     <Product>DbUp</Product>
     <Copyright>Copyright © DbUp Contributors 2015</Copyright>
-    <TargetFrameworks>netstandard2.1;net462;net48;net8.0;net9.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.1;net462;net48;net6.0;net8.0;net9.0</TargetFrameworks>
     <AssemblyName>dbup-clickhouse</AssemblyName>
     <RootNamespace>DbUp.ClickHouse</RootNamespace>
     <PackageId>dbup-clickhouse</PackageId>
@@ -17,6 +17,21 @@
   <ItemGroup>
     <PackageReference Include="ClickHouse.Driver" Version="0.7.20" />
     <PackageReference Include="dbup-core" Version="6.0.4" />
+
+    <!-- Override problematic System package versions for target framework compatibility -->
+    <!-- ClickHouse.Driver incorrectly specifies System.Text.Json 9.0.2 for frameworks that don't support it -->
+
+    <!-- .NET 6.0 - use 6.x versions (9.0.2 is not supported) -->
+    <PackageReference Include="System.Text.Json" Version="6.0.11" Condition="'$(TargetFramework)' == 'net6.0'" NoWarn="NU1605" />
+    <PackageReference Include="System.Text.Encodings.Web" Version="6.0.1" Condition="'$(TargetFramework)' == 'net6.0'" NoWarn="NU1605" />
+    <PackageReference Include="System.IO.Pipelines" Version="6.0.3" Condition="'$(TargetFramework)' == 'net6.0'" NoWarn="NU1605" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" Condition="'$(TargetFramework)' == 'net6.0'" NoWarn="NU1605" />
+
+    <!-- .NET Standard 2.1 - use compatible versions (9.0.2 only supports .NET Standard 2.0, not 2.1) -->
+    <PackageReference Include="System.Text.Json" Version="6.0.11" Condition="'$(TargetFramework)' == 'netstandard2.1'" NoWarn="NU1605" />
+    <PackageReference Include="System.Text.Encodings.Web" Version="6.0.1" Condition="'$(TargetFramework)' == 'netstandard2.1'" NoWarn="NU1605" />
+    <PackageReference Include="System.IO.Pipelines" Version="6.0.3" Condition="'$(TargetFramework)' == 'netstandard2.1'" NoWarn="NU1605" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" Condition="'$(TargetFramework)' == 'netstandard2.1'" NoWarn="NU1605" />
   </ItemGroup>
 
   <ItemGroup>
