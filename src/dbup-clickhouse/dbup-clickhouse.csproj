@@ -10,6 +10,8 @@
     <AssemblyName>dbup-clickhouse</AssemblyName>
     <RootNamespace>DbUp.ClickHouse</RootNamespace>
     <PackageId>dbup-clickhouse</PackageId>
+    <AssemblyOriginatorKeyFile>../dbup.snk</AssemblyOriginatorKeyFile>
+    <SignAssembly>true</SignAssembly>
     <RepositoryUrl>https://github.com/DbUp/dbup-clickhouse.git</RepositoryUrl>
     <PackageIcon>dbup-icon.png</PackageIcon>
   </PropertyGroup>
