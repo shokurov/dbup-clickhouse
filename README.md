@@ -14,3 +14,5 @@ Please only log issue related to ClickHouse support in this repo. For cross cutt
 # Contributing
 
 See the [readme in our main repo](https://github.com/DbUp/DbUp/blob/master/README.md) for how to get started and contribute.
+
+To run the tests, start the clickhouse container by running `./start-clickhouse.ps1`
