@@ -25,6 +25,8 @@
   <ItemGroup>
     <Compile Remove="ApprovalFiles\*.cs" />
     <None Include="ApprovalFiles\*.cs" />
+    <Compile Remove="ApprovalFiles\*.txt" />
+    <None Include="ApprovalFiles\*.txt" />
   </ItemGroup>
 
 </Project>
